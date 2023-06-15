@@ -1,7 +1,8 @@
 import 'dart:io';
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 // Define the data model classes
 class MenuItem {
@@ -29,10 +30,6 @@ class Order {
 // Define the menus and orders
 final List<MenuItem> menuItems = [];
 final List<Order> orders = [];
-
-void main() {
-  runApp(MyApp());
-}
 
 class MyApp extends StatelessWidget {
   @override
@@ -138,6 +135,94 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
+  Future<void> addMenuItem() async {
+    if (nameController.text.isEmpty ||
+        priceController.text.isEmpty ||
+        detailsController.text.isEmpty ||
+        _image == null) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text('Please fill all the fields and select an image.'),
+            actions: [
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    final String name = nameController.text;
+    final double price = double.parse(priceController.text);
+    final String details = detailsController.text;
+
+    // Perform API request to add menu item
+    // Replace 'http://example.com' with your actual API endpoint
+    const String apiUrl = 'http://localhost:3000/users/{userId}';
+    final response = await http.post(
+      Uri.parse(apiUrl),
+      body: {
+        'name': name,
+        'price': price.toString(),
+        'details': details,
+        // You might need to adjust the key based on your API requirements
+        'image': base64Encode(_image!.readAsBytesSync()),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Success'),
+            content: Text('Menu item added successfully.'),
+            actions: [
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+      nameController.clear();
+      priceController.clear();
+      detailsController.clear();
+      setState(() {
+        _image = null;
+      });
+    } else {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text('Failed to add menu item.'),
+            actions: [
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
   @override
   void dispose() {
     nameController.dispose();
@@ -152,174 +237,136 @@ class _AdminPageState extends State<AdminPage> {
       appBar: AppBar(
         title: Text('Admin Portal'),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            TextFormField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: 'Name',
+      body: SingleChildScrollView(
+        child: Container(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Add Menu Item',
+                style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
               ),
-            ),
-            SizedBox(height: 16.0),
-            TextFormField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Price',
-              ),
-            ),
-            SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: getImage,
-              child: Text(
-                'Select Picture',
-                style: TextStyle(fontSize: 16.0),
-              ),
-              style: ElevatedButton.styleFrom(
-                primary: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              ),
-            ),
-            SizedBox(height: 16.0),
-            _image != null
-                ? Image.file(
-                    _image!,
-                    height: 200.0,
-                    width: 200.0,
-                    fit: BoxFit.cover,
-                  )
-                : Container(),
-            SizedBox(height: 16.0),
-            TextFormField(
-              controller: detailsController,
-              decoration: InputDecoration(
-                labelText: 'Details',
-              ),
-              maxLines: 3,
-            ),
-            SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () {
-                final String name = nameController.text;
-                final double price = double.parse(priceController.text);
-                final String details = detailsController.text;
-
-                final MenuItem newItem = MenuItem(
-                  name: name,
-                  price: price,
-                  picture: _image,
-                  details: details,
-                );
-
-                // Save the new item to the menu
-                menuItems.add(newItem);
-
-                // Clear the text fields and image
-                nameController.clear();
-                priceController.clear();
-                detailsController.clear();
-                setState(() {
-                  _image = null;
-                });
-
-                showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: Text('Success'),
-                      content: Text('New menu item added.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: Text('OK'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-              child: Text('Add Item'),
-              style: ElevatedButton.styleFrom(
-                primary: Colors.red,
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+              SizedBox(height: 16.0),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Name',
                 ),
               ),
-            ),
-            SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => OrdersPage()),
-                );
-              },
-              child: Text('See All Orders'),
-              style: ElevatedButton.styleFrom(
-                primary: Colors.red,
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+              SizedBox(height: 8.0),
+              TextField(
+                controller: priceController,
+                decoration: InputDecoration(
+                  labelText: 'Price',
                 ),
+                keyboardType: TextInputType.number,
               ),
-            ),
-          ],
+              SizedBox(height: 8.0),
+              TextField(
+                controller: detailsController,
+                decoration: InputDecoration(
+                  labelText: 'Details',
+                ),
+                maxLines: null,
+              ),
+              SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: getImage,
+                child: Text('Select Image'),
+              ),
+              SizedBox(height: 8.0),
+              if (_image != null) Image.file(_image!),
+              SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: addMenuItem,
+                child: Text('Add Menu Item'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class UserPage extends StatefulWidget {
-  @override
-  _UserPageState createState() => _UserPageState();
-}
+class UserPage extends StatelessWidget {
+  Future<List<MenuItem>> getMenuItems() async {
+    const String apiUrl = 'http://localhost:3000/users/{userId}';
+    final response = await http.get(Uri.parse(apiUrl));
 
-class _UserPageState extends State<UserPage> {
-  final List<MenuItem> cartItems = [];
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      final List<MenuItem> menuItems = data
+          .map((item) => MenuItem(
+                name: item['name'],
+                price: double.parse(item['price']),
+                picture: null,
+                details: item['details'],
+              ))
+          .toList();
 
-  void addToCart(MenuItem item) {
-    setState(() {
-      cartItems.add(item);
-    });
+      return menuItems;
+    } else {
+      throw Exception('Failed to fetch menu items');
+    }
   }
 
-  void placeOrder() {
-    final DateTime dateTime = DateTime.now();
+  Future<void> placeOrder(MenuItem item) async {
+    final DateTime now = DateTime.now();
 
-    for (final MenuItem item in cartItems) {
-      final Order order =
-          Order(item: item, dateTime: dateTime, status: 'Pending');
-      orders.add(order);
-    }
-
-    cartItems.clear();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Success'),
-          content: Text('Order placed successfully.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
+    // Perform API request to submit order
+    // Replace 'http://example.com' with your actual API endpoint
+    const String apiUrl = 'http://localhost:3000/users/{userId}';
+    final response = await http.post(
+      Uri.parse(apiUrl),
+      body: {
+        'name': item.name,
+        'price': item.price.toString(),
+        'details': item.details,
+        'dateTime': now.toIso8601String(),
       },
     );
+
+    if (response.statusCode == 200) {
+      var context;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Success'),
+            content: Text('Order placed successfully.'),
+            actions: [
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      var context;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text('Failed to place order.'),
+            actions: [
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -328,277 +375,42 @@ class _UserPageState extends State<UserPage> {
       appBar: AppBar(
         title: Text('User Portal'),
       ),
-      body: GridView.builder(
-        padding: EdgeInsets.all(16.0),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.75,
-          crossAxisSpacing: 16.0,
-          mainAxisSpacing: 16.0,
-        ),
-        itemCount: menuItems.length,
-        itemBuilder: (context, index) {
-          final MenuItem item = menuItems[index];
+      body: FutureBuilder<List<MenuItem>>(
+        future: getMenuItems(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            final List<MenuItem> menuItems = snapshot.data!;
 
-          return GestureDetector(
-            onTap: () {
-              addToCart(item);
-              showDialog(
-                context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: Text('Success'),
-                    content: Text('Item added to cart.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: Text('OK'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    offset: Offset(0, 2),
-                    blurRadius: 6.0,
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: item.picture != null
-                          ? Image.file(
-                              item.picture!,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            )
-                          : Image.asset(
-                              'assets/placeholder.jpg',
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                    ),
-                  ),
-                  SizedBox(height: 8.0),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text(
-                      item.name,
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text(
-                      '\$${item.price.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 14.0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => CartPage(cartItems: cartItems)),
-          );
-        },
-        label: Text('View Cart (${cartItems.length})'),
-        icon: Icon(Icons.shopping_cart),
-      ),
-    );
-  }
-}
-
-class CartPage extends StatelessWidget {
-  final List<MenuItem> cartItems;
-
-  const CartPage({required this.cartItems});
-
-  @override
-  Widget build(BuildContext context) {
-    double totalAmount = 0;
-    for (final MenuItem item in cartItems) {
-      totalAmount += item.price;
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Cart'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.all(16.0),
-              itemCount: cartItems.length,
+            return ListView.builder(
+              itemCount: menuItems.length,
               itemBuilder: (context, index) {
-                final MenuItem item = cartItems[index];
-
+                final MenuItem item = menuItems[index];
                 return ListTile(
                   leading: item.picture != null
-                      ? Image.file(
-                          item.picture!,
-                          width: 60.0,
-                          height: 60.0,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.asset(
-                          'assets/placeholder.jpg',
-                          width: 60.0,
-                          height: 60.0,
-                          fit: BoxFit.cover,
-                        ),
+                      ? Image.file(item.picture!)
+                      : Container(),
                   title: Text(item.name),
-                  subtitle: Text('\$${item.price.toStringAsFixed(2)}'),
-                  trailing: IconButton(
-                    icon: Icon(Icons.remove_circle),
+                  subtitle: Text('Price: \$${item.price.toStringAsFixed(2)}'),
+                  trailing: ElevatedButton(
                     onPressed: () {
-                      cartItems.removeAt(index);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Item removed from cart.'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
+                      placeOrder(item);
                     },
+                    child: Text('Order'),
                   ),
                 );
               },
-            ),
-          ),
-          SizedBox(height: 16.0),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total Amount:',
-                  style: TextStyle(
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '\$${totalAmount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 16.0),
-          ElevatedButton(
-            onPressed: () {
-              if (cartItems.isEmpty) {
-                showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: Text('Empty Cart'),
-                      content: Text('Please add items to the cart.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: Text('OK'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              } else {
-                showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: Text('Confirm Order'),
-                      content: Text('Do you want to place the order?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            Navigator.pop(context);
-                            _UserPageState().placeOrder();
-                          },
-                          child: Text('Place Order'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              }
-            },
-            child: Text('Place Order'),
-            style: ElevatedButton.styleFrom(
-              primary: Colors.red,
-              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-            ),
-          ),
-        ],
+            );
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Failed to fetch menu items'));
+          } else {
+            return Center(child: CircularProgressIndicator());
+          }
+        },
       ),
     );
   }
 }
 
-class OrdersPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Orders'),
-      ),
-      body: ListView.builder(
-        padding: EdgeInsets.all(16.0),
-        itemCount: orders.length,
-        itemBuilder: (context, index) {
-          final Order order = orders[index];
-
-          return ListTile(
-            leading: Icon(Icons.check_circle),
-            title: Text(order.item.name),
-            subtitle: Text('Status: ${order.status}'),
-          );
-        },
-      ),
-    );
-  }
+void main() {
+  runApp(MyApp());
 }
